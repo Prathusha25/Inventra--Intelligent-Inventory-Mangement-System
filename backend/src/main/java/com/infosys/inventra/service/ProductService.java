@@ -18,6 +18,12 @@ public class ProductService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private AlertService alertService;
+
+    @Autowired
+    private AuditLogService auditLogService;
+
     /**
      * Get all products
      */
@@ -44,7 +50,7 @@ public class ProductService {
     /**
      * Create new product
      */
-    public ProductDTO createProduct(CreateProductRequest request) {
+    public ProductDTO createProduct(CreateProductRequest request, Long actorUserId, String actorRole) {
         // Check if SKU already exists
         if (productRepository.existsBySku(request.getSku())) {
             throw new RuntimeException("Product with SKU '" + request.getSku() + "' already exists");
@@ -55,18 +61,28 @@ public class ProductService {
         product.setSku(request.getSku());
         product.setCategory(request.getCategory());
         product.setQuantity(request.getQuantity());
+        product.setMinThreshold(request.getMinThreshold() == null ? 10 : request.getMinThreshold());
         product.setPrice(request.getPrice());
         product.setSupplier(request.getSupplier());
         // Status will be set automatically in @PrePersist
 
         Product savedProduct = productRepository.save(product);
+        alertService.evaluateLowStockAlert(savedProduct);
+        auditLogService.log(
+            "PRODUCT_CREATED",
+            "PRODUCT",
+            savedProduct.getId(),
+            "Created product " + savedProduct.getName() + " (SKU: " + savedProduct.getSku() + ")",
+            actorUserId,
+            actorRole
+        );
         return convertToDTO(savedProduct);
     }
 
     /**
      * Update product
      */
-    public Optional<ProductDTO> updateProduct(Long id, UpdateProductRequest request) {
+    public Optional<ProductDTO> updateProduct(Long id, UpdateProductRequest request, Long actorUserId, String actorRole) {
         Optional<Product> productOpt = productRepository.findById(id);
 
         if (productOpt.isEmpty()) {
@@ -77,20 +93,40 @@ public class ProductService {
         product.setName(request.getName());
         product.setCategory(request.getCategory());
         product.setQuantity(request.getQuantity());
+        product.setMinThreshold(request.getMinThreshold() == null ? product.getMinThreshold() : request.getMinThreshold());
         product.setPrice(request.getPrice());
         product.setSupplier(request.getSupplier());
         // Status will be updated automatically in @PreUpdate
 
         Product updatedProduct = productRepository.save(product);
+        alertService.evaluateLowStockAlert(updatedProduct);
+        auditLogService.log(
+            "PRODUCT_UPDATED",
+            "PRODUCT",
+            updatedProduct.getId(),
+            "Updated product " + updatedProduct.getName() + " (SKU: " + updatedProduct.getSku() + ")",
+            actorUserId,
+            actorRole
+        );
         return Optional.of(convertToDTO(updatedProduct));
     }
 
     /**
      * Delete product
      */
-    public boolean deleteProduct(Long id) {
-        if (productRepository.existsById(id)) {
+    public boolean deleteProduct(Long id, Long actorUserId, String actorRole) {
+        Optional<Product> productOpt = productRepository.findById(id);
+        if (productOpt.isPresent()) {
+            Product product = productOpt.get();
             productRepository.deleteById(id);
+            auditLogService.log(
+                    "PRODUCT_DELETED",
+                    "PRODUCT",
+                    id,
+                    "Deleted product " + product.getName() + " (SKU: " + product.getSku() + ")",
+                    actorUserId,
+                    actorRole
+            );
             return true;
         }
         return false;
@@ -134,7 +170,7 @@ public class ProductService {
      * Get low stock products
      */
     public List<ProductDTO> getLowStockProducts() {
-        return productRepository.findLowStockProducts(10).stream()
+        return productRepository.findLowStockProducts().stream()
                 .map(this::convertToDTO)
                 .collect(Collectors.toList());
     }
@@ -151,7 +187,7 @@ public class ProductService {
     /**
      * Update product quantity
      */
-    public Optional<ProductDTO> updateQuantity(Long id, Integer quantity) {
+    public Optional<ProductDTO> updateQuantity(Long id, Integer quantity, Long actorUserId, String actorRole) {
         Optional<Product> productOpt = productRepository.findById(id);
 
         if (productOpt.isEmpty()) {
@@ -163,6 +199,15 @@ public class ProductService {
         // Status will be updated automatically in @PreUpdate
 
         Product updatedProduct = productRepository.save(product);
+        alertService.evaluateLowStockAlert(updatedProduct);
+        auditLogService.log(
+            "PRODUCT_QUANTITY_UPDATED",
+            "PRODUCT",
+            updatedProduct.getId(),
+            "Updated quantity for " + updatedProduct.getName() + " to " + updatedProduct.getQuantity(),
+            actorUserId,
+            actorRole
+        );
         return Optional.of(convertToDTO(updatedProduct));
     }
 
@@ -176,6 +221,7 @@ public class ProductService {
         dto.setSku(product.getSku());
         dto.setCategory(product.getCategory());
         dto.setQuantity(product.getQuantity());
+        dto.setMinThreshold(product.getMinThreshold());
         dto.setPrice(product.getPrice());
         dto.setSupplier(product.getSupplier());
         dto.setStatus(product.getStatus());

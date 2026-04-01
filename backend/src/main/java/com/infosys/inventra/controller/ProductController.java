@@ -3,12 +3,14 @@ package com.infosys.inventra.controller;
 import com.infosys.inventra.dto.CreateProductRequest;
 import com.infosys.inventra.dto.ProductDTO;
 import com.infosys.inventra.dto.UpdateProductRequest;
+import com.infosys.inventra.model.User;
 import com.infosys.inventra.service.ProductService;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.HashMap;
@@ -108,9 +110,10 @@ public class ProductController {
      */
     @PostMapping
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> createProduct(@Valid @RequestBody CreateProductRequest request) {
+    public ResponseEntity<?> createProduct(@Valid @RequestBody CreateProductRequest request, Authentication authentication) {
         try {
-            ProductDTO product = productService.createProduct(request);
+            User user = (User) authentication.getPrincipal();
+            ProductDTO product = productService.createProduct(request, user.getId(), user.getRole());
             return ResponseEntity.status(HttpStatus.CREATED).body(product);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();
@@ -124,9 +127,11 @@ public class ProductController {
      */
     @PutMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> updateProduct(@PathVariable Long id, @Valid @RequestBody UpdateProductRequest request) {
+    public ResponseEntity<?> updateProduct(@PathVariable Long id, @Valid @RequestBody UpdateProductRequest request,
+                                           Authentication authentication) {
         try {
-            Optional<ProductDTO> updatedProduct = productService.updateProduct(id, request);
+            User user = (User) authentication.getPrincipal();
+            Optional<ProductDTO> updatedProduct = productService.updateProduct(id, request, user.getId(), user.getRole());
 
             if (updatedProduct.isPresent()) {
                 return ResponseEntity.ok(updatedProduct.get());
@@ -146,8 +151,10 @@ public class ProductController {
      * Update product quantity (Admin and Employee can update stock)
      */
     @PatchMapping("/{id}/quantity")
-    public ResponseEntity<?> updateQuantity(@PathVariable Long id, @RequestParam Integer quantity) {
-        Optional<ProductDTO> updatedProduct = productService.updateQuantity(id, quantity);
+    public ResponseEntity<?> updateQuantity(@PathVariable Long id, @RequestParam Integer quantity,
+                                            Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        Optional<ProductDTO> updatedProduct = productService.updateQuantity(id, quantity, user.getId(), user.getRole());
 
         if (updatedProduct.isPresent()) {
             return ResponseEntity.ok(updatedProduct.get());
@@ -163,8 +170,9 @@ public class ProductController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteProduct(@PathVariable Long id) {
-        boolean deleted = productService.deleteProduct(id);
+    public ResponseEntity<?> deleteProduct(@PathVariable Long id, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        boolean deleted = productService.deleteProduct(id, user.getId(), user.getRole());
 
         Map<String, String> response = new HashMap<>();
         if (deleted) {

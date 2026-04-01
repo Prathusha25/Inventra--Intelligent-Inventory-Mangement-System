@@ -69,4 +69,14 @@ public class ReportController {
         ReportDTO report = reportService.generateInventoryReport();
         return ResponseEntity.ok(report);
     }
+
+    /**
+     * Generate audit log report (Admin only)
+     */
+    @GetMapping("/audit-logs")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ResponseEntity<ReportDTO> generateAuditLogReport() {
+        ReportDTO report = reportService.generateAuditLogReport();
+        return ResponseEntity.ok(report);
+    }
 }

@@ -1,6 +1,7 @@
 package com.infosys.inventra.service;
 
 import com.infosys.inventra.dto.ReportDTO;
+import com.infosys.inventra.model.AuditLog;
 import com.infosys.inventra.model.Order;
 import com.infosys.inventra.model.Product;
 import com.infosys.inventra.repository.OrderRepository;
@@ -22,6 +23,9 @@ public class ReportService {
 
     @Autowired
     private OrderRepository orderRepository;
+
+        @Autowired
+        private AuditLogService auditLogService;
 
     /**
      * Generate inventory stock report
@@ -61,7 +65,7 @@ public class ReportService {
      * Generate low stock alert report
      */
     public ReportDTO generateLowStockReport() {
-        List<Product> lowStockProducts = productRepository.findByQuantityLessThan(10);
+                List<Product> lowStockProducts = productRepository.findLowStockProducts();
 
         Map<String, Object> data = new HashMap<>();
         data.put("lowStockProducts", lowStockProducts.stream()
@@ -222,4 +226,40 @@ public class ReportService {
 
         return report;
     }
+
+        /**
+         * Generate audit log report (Admin only)
+         */
+        public ReportDTO generateAuditLogReport() {
+                List<AuditLog> logs = auditLogService.getRecentLogs();
+
+                Map<String, Object> data = new HashMap<>();
+                data.put("totalLogs", logs.size());
+                data.put("logs", logs.stream().map(log -> {
+                        Map<String, Object> logData = new HashMap<>();
+                        logData.put("id", log.getId());
+                        logData.put("action", log.getAction());
+                        logData.put("entityType", log.getEntityType());
+                        logData.put("entityId", log.getEntityId());
+                        logData.put("description", log.getDescription());
+                        logData.put("actorUserId", log.getActorUserId());
+                        logData.put("actorRole", log.getActorRole());
+                        logData.put("createdAt", log.getCreatedAt());
+                        return logData;
+                }).collect(Collectors.toList()));
+
+                Map<String, Long> actionsByType = logs.stream()
+                                .collect(Collectors.groupingBy(AuditLog::getAction, Collectors.counting()));
+                data.put("actionsByType", actionsByType);
+
+                Map<String, BigDecimal> summary = new HashMap<>();
+                summary.put("logCount", new BigDecimal(logs.size()));
+
+                ReportDTO report = new ReportDTO();
+                report.setReportType("AUDIT_LOG");
+                report.setGeneratedAt(LocalDateTime.now());
+                report.setData(data);
+                report.setSummary(summary);
+                return report;
+        }
 }

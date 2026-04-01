@@ -50,10 +50,10 @@ public interface ProductRepository extends JpaRepository<Product, Long> {
     List<String> findAllCategories();
 
     /**
-     * Find products with low stock (quantity < threshold)
+     * Find products with low stock based on per-product threshold
      */
-    @Query("SELECT p FROM Product p WHERE p.quantity < :threshold AND p.quantity > 0")
-    List<Product> findLowStockProducts(@Param("threshold") int threshold);
+    @Query("SELECT p FROM Product p WHERE p.quantity <= p.minThreshold AND p.quantity > 0")
+    List<Product> findLowStockProducts();
 
     /**
      * Find products by quantity less than specified value

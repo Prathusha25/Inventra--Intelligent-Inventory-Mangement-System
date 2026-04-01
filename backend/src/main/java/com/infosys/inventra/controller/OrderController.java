@@ -1,6 +1,7 @@
 package com.infosys.inventra.controller;
 
 import com.infosys.inventra.dto.OrderDTO;
+import com.infosys.inventra.dto.CreateOrderRequest;
 import com.infosys.inventra.model.User;
 import com.infosys.inventra.service.OrderService;
 import jakarta.validation.Valid;
@@ -117,14 +118,27 @@ public class OrderController {
      * Create new order (All authenticated users)
      */
     @PostMapping
-    public ResponseEntity<?> createOrder(@Valid @RequestBody OrderDTO orderDTO, Authentication authentication) {
+    public ResponseEntity<?> createOrder(@Valid @RequestBody CreateOrderRequest request, Authentication authentication) {
         try {
             User user = (User) authentication.getPrincipal();
+
+            // Employee workflow: allow stock-in request creation only as PURCHASE requests
+            if (!"ADMIN".equals(user.getRole()) && !"PURCHASE".equalsIgnoreCase(request.getOrderType())) {
+                Map<String, String> error = new HashMap<>();
+                error.put("message", "Employees can only create stock-in purchase requests");
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(error);
+            }
             
-            // Set the user ID from the authenticated user
+            // Convert CreateOrderRequest to OrderDTO
+            OrderDTO orderDTO = new OrderDTO();
             orderDTO.setUserId(user.getId());
+            orderDTO.setOrderType(request.getOrderType().toUpperCase());
+            orderDTO.setSupplierId(request.getSupplierId());
+            orderDTO.setNotes(request.getNotes());
+            orderDTO.setOrderItems(request.getOrderItems());
+            orderDTO.setExpectedDeliveryDate(request.getExpectedDeliveryDate());
             
-            OrderDTO createdOrder = orderService.createOrder(orderDTO);
+            OrderDTO createdOrder = orderService.createOrder(orderDTO, user.getId(), user.getRole());
             return ResponseEntity.status(HttpStatus.CREATED).body(createdOrder);
         } catch (RuntimeException e) {
             Map<String, String> error = new HashMap<>();
@@ -166,7 +180,7 @@ public class OrderController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
             }
 
-            Optional<OrderDTO> updatedOrder = orderService.updateOrder(id, orderDTO);
+            Optional<OrderDTO> updatedOrder = orderService.updateOrder(id, orderDTO, user.getId(), user.getRole());
 
             if (updatedOrder.isPresent()) {
                 return ResponseEntity.ok(updatedOrder.get());
@@ -231,7 +245,7 @@ public class OrderController {
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(error);
             }
 
-            Optional<OrderDTO> cancelledOrder = orderService.cancelOrder(id);
+            Optional<OrderDTO> cancelledOrder = orderService.cancelOrder(id, user.getId(), user.getRole());
 
             if (cancelledOrder.isPresent()) {
                 return ResponseEntity.ok(cancelledOrder.get());
@@ -252,8 +266,9 @@ public class OrderController {
      */
     @DeleteMapping("/{id}")
     @PreAuthorize("hasRole('ADMIN')")
-    public ResponseEntity<?> deleteOrder(@PathVariable Long id) {
-        boolean deleted = orderService.deleteOrder(id);
+    public ResponseEntity<?> deleteOrder(@PathVariable Long id, Authentication authentication) {
+        User user = (User) authentication.getPrincipal();
+        boolean deleted = orderService.deleteOrder(id, user.getId(), user.getRole());
 
         Map<String, String> response = new HashMap<>();
         if (deleted) {

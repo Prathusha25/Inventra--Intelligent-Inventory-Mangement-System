@@ -42,6 +42,10 @@ public class Product {
     @Column(nullable = false)
     private Integer quantity;
 
+    @Min(value = 0, message = "Minimum threshold must be greater than or equal to 0")
+    @Column(name = "min_threshold", nullable = false)
+    private Integer minThreshold = 10;
+
     @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
     @Column(nullable = false, precision = 10, scale = 2)
     private BigDecimal price;
@@ -80,7 +84,7 @@ public class Product {
     private void updateStatus() {
         if (quantity == 0) {
             status = "Out of Stock";
-        } else if (quantity < 10) {
+        } else if (quantity <= minThreshold) {
             status = "Low Stock";
         } else {
             status = "In Stock";

@@ -30,6 +30,9 @@ public class CreateProductRequest {
     @Min(value = 0, message = "Quantity must be greater than or equal to 0")
     private Integer quantity;
 
+    @Min(value = 0, message = "Minimum threshold must be greater than or equal to 0")
+    private Integer minThreshold;
+
     @DecimalMin(value = "0.0", inclusive = true, message = "Price must be greater than or equal to 0")
     private BigDecimal price;
 

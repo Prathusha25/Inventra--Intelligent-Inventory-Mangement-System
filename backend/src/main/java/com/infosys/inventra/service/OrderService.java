@@ -27,6 +27,12 @@ public class OrderService {
     @Autowired
     private ProductRepository productRepository;
 
+    @Autowired
+    private AlertService alertService;
+
+    @Autowired
+    private AuditLogService auditLogService;
+
     /**
      * Get all orders
      */
@@ -83,7 +89,11 @@ public class OrderService {
      * Create new order
      */
     @Transactional
-    public OrderDTO createOrder(OrderDTO orderDTO) {
+    public OrderDTO createOrder(OrderDTO orderDTO, Long actorUserId, String actorRole) {
+        if (orderDTO.getOrderItems() == null || orderDTO.getOrderItems().isEmpty()) {
+            throw new RuntimeException("At least one order item is required");
+        }
+
         // Generate order number
         String orderNumber = generateOrderNumber();
         
@@ -97,7 +107,7 @@ public class OrderService {
         order.setExpectedDeliveryDate(orderDTO.getExpectedDeliveryDate());
         
         // Calculate total from order items
-        BigDecimal totalAmount = BigDecimal.ZERO;
+        BigDecimal totalAmount;
         List<OrderItem> orderItems = orderDTO.getOrderItems().stream()
                 .map(itemDTO -> {
                     OrderItem item = convertToOrderItemEntity(itemDTO);
@@ -105,15 +115,17 @@ public class OrderService {
                     
                     // Get product details
                     Optional<Product> productOpt = productRepository.findById(itemDTO.getProductId());
-                    if (productOpt.isPresent()) {
-                        Product product = productOpt.get();
-                        item.setProductName(product.getName());
-                        item.setProductSku(product.getSku());
-                        
-                        // Use product price if not provided
-                        if (itemDTO.getUnitPrice() == null) {
-                            item.setUnitPrice(product.getPrice());
-                        }
+                    if (productOpt.isEmpty()) {
+                        throw new RuntimeException("Product not found for id " + itemDTO.getProductId());
+                    }
+
+                    Product product = productOpt.get();
+                    item.setProductName(product.getName());
+                    item.setProductSku(product.getSku());
+
+                    // Use product price if not provided
+                    if (itemDTO.getUnitPrice() == null) {
+                        item.setUnitPrice(product.getPrice());
                     }
                     
                     // Calculate subtotal
@@ -131,8 +143,22 @@ public class OrderService {
         
         order.setTotalAmount(totalAmount);
         order.setOrderItems(orderItems);
-        
+
         Order savedOrder = orderRepository.save(order);
+
+        if ("PURCHASE".equals(savedOrder.getOrderType())) {
+            alertService.createStockRequestAlert(savedOrder);
+        }
+
+        auditLogService.log(
+                "ORDER_CREATED",
+                "ORDER",
+                savedOrder.getId(),
+                "Created order " + savedOrder.getOrderNumber() + " with status " + savedOrder.getStatus(),
+                actorUserId,
+                actorRole
+        );
+
         return convertToDTO(savedOrder);
     }
 
@@ -140,7 +166,7 @@ public class OrderService {
      * Update order
      */
     @Transactional
-    public Optional<OrderDTO> updateOrder(Long id, OrderDTO orderDTO) {
+    public Optional<OrderDTO> updateOrder(Long id, OrderDTO orderDTO, Long actorUserId, String actorRole) {
         Optional<Order> orderOpt = orderRepository.findById(id);
 
         if (orderOpt.isEmpty()) {
@@ -154,6 +180,14 @@ public class OrderService {
         order.setActualDeliveryDate(orderDTO.getActualDeliveryDate());
 
         order = orderRepository.save(order);
+        auditLogService.log(
+            "ORDER_UPDATED",
+            "ORDER",
+            order.getId(),
+            "Updated order " + order.getOrderNumber() + " to status " + order.getStatus(),
+            actorUserId,
+            actorRole
+        );
         return Optional.of(convertToDTO(order));
     }
 
@@ -185,12 +219,22 @@ public class OrderService {
                 if (productOpt.isPresent()) {
                     Product product = productOpt.get();
                     product.setQuantity(product.getQuantity() + item.getQuantity());
-                    productRepository.save(product);
+                    Product updatedProduct = productRepository.save(product);
+                    alertService.evaluateLowStockAlert(updatedProduct);
                 }
             }
         }
 
         order = orderRepository.save(order);
+        alertService.createApprovalAlert(order);
+        auditLogService.log(
+                "ORDER_APPROVED",
+                "ORDER",
+                order.getId(),
+                "Approved order " + order.getOrderNumber() + " and updated stock",
+                adminId,
+                "ADMIN"
+        );
         return Optional.of(convertToDTO(order));
     }
 
@@ -198,7 +242,7 @@ public class OrderService {
      * Cancel order
      */
     @Transactional
-    public Optional<OrderDTO> cancelOrder(Long id) {
+    public Optional<OrderDTO> cancelOrder(Long id, Long actorUserId, String actorRole) {
         Optional<Order> orderOpt = orderRepository.findById(id);
 
         if (orderOpt.isEmpty()) {
@@ -213,15 +257,34 @@ public class OrderService {
         
         order.setStatus("CANCELLED");
         order = orderRepository.save(order);
+        auditLogService.log(
+            "ORDER_CANCELLED",
+            "ORDER",
+            order.getId(),
+            "Cancelled order " + order.getOrderNumber(),
+            actorUserId,
+            actorRole
+        );
         return Optional.of(convertToDTO(order));
     }
 
     /**
      * Delete order
      */
-    public boolean deleteOrder(Long id) {
+    public boolean deleteOrder(Long id, Long actorUserId, String actorRole) {
         if (orderRepository.existsById(id)) {
+            Optional<Order> orderOpt = orderRepository.findById(id);
             orderRepository.deleteById(id);
+            if (orderOpt.isPresent()) {
+                auditLogService.log(
+                        "ORDER_DELETED",
+                        "ORDER",
+                        id,
+                        "Deleted order " + orderOpt.get().getOrderNumber(),
+                        actorUserId,
+                        actorRole
+                );
+            }
             return true;
         }
         return false;

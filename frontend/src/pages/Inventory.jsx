@@ -39,6 +39,7 @@ export default function Inventory() {
     sku: "",
     category: "",
     quantity: 0,
+    minThreshold: 10,
     price: 0,
     supplier: "",
   });
@@ -83,6 +84,7 @@ export default function Inventory() {
         sku: product.sku,
         category: product.category,
         quantity: product.quantity,
+        minThreshold: product.minThreshold ?? 10,
         price: product.price,
         supplier: product.supplier || "",
       });
@@ -93,6 +95,7 @@ export default function Inventory() {
         sku: "",
         category: "",
         quantity: 0,
+        minThreshold: 10,
         price: 0,
         supplier: "",
       });
@@ -110,6 +113,7 @@ export default function Inventory() {
       sku: "",
       category: "",
       quantity: 0,
+      minThreshold: 10,
       price: 0,
       supplier: "",
     });
@@ -127,6 +131,7 @@ export default function Inventory() {
           name: formData.name,
           category: formData.category,
           quantity: parseInt(formData.quantity),
+          minThreshold: parseInt(formData.minThreshold),
           price: parseFloat(formData.price),
           supplier: formData.supplier,
         };
@@ -139,6 +144,7 @@ export default function Inventory() {
           sku: formData.sku,
           category: formData.category,
           quantity: parseInt(formData.quantity),
+          minThreshold: parseInt(formData.minThreshold),
           price: parseFloat(formData.price),
           supplier: formData.supplier,
         };
@@ -243,6 +249,7 @@ export default function Inventory() {
                 <th className="text-left text-slate-400 font-medium px-5 py-3">SKU</th>
                 <th className="text-left text-slate-400 font-medium px-5 py-3">Category</th>
                 <th className="text-right text-slate-400 font-medium px-5 py-3">Qty</th>
+                <th className="text-right text-slate-400 font-medium px-5 py-3">Threshold</th>
                 <th className="text-right text-slate-400 font-medium px-5 py-3">Price</th>
                 <th className="text-left text-slate-400 font-medium px-5 py-3">Supplier</th>
                 <th className="text-left text-slate-400 font-medium px-5 py-3">Status</th>
@@ -262,6 +269,9 @@ export default function Inventory() {
                   <td className="px-5 py-3.5 text-slate-300">{product.category}</td>
                   <td className="px-5 py-3.5 text-right text-slate-300">
                     {product.quantity}
+                  </td>
+                  <td className="px-5 py-3.5 text-right text-slate-300">
+                    {product.minThreshold}
                   </td>
                   <td className="px-5 py-3.5 text-right text-slate-300">
                     ${product.price.toFixed(2)}
@@ -390,6 +400,21 @@ export default function Inventory() {
                     onChange={(e) => setFormData({ ...formData, quantity: e.target.value })}
                     className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
                     placeholder="Enter quantity"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-slate-300 mb-1.5">
+                    Min Threshold *
+                  </label>
+                  <input
+                    type="number"
+                    required
+                    min="0"
+                    value={formData.minThreshold}
+                    onChange={(e) => setFormData({ ...formData, minThreshold: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 transition-all"
+                    placeholder="Stock alert threshold"
                   />
                 </div>
 

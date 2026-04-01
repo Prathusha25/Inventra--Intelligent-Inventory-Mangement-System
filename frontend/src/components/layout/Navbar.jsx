@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
+import { alertService } from "../../api/services";
 import {
   HiBars3,
   HiBell,
@@ -10,7 +12,9 @@ import {
 
 export default function Navbar({ onMenuClick }) {
   const { user, logout } = useAuth();
+  const navigate = useNavigate();
   const [dropdownOpen, setDropdownOpen] = useState(false);
+  const [openAlertCount, setOpenAlertCount] = useState(0);
   const dropdownRef = useRef(null);
 
   useEffect(() => {
@@ -21,6 +25,19 @@ export default function Navbar({ onMenuClick }) {
     }
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  useEffect(() => {
+    const fetchAlertCount = async () => {
+      try {
+        const response = await alertService.getOpenCount();
+        setOpenAlertCount(response.data?.count || 0);
+      } catch (error) {
+        console.error("Failed to fetch open alerts count", error);
+      }
+    };
+
+    fetchAlertCount();
   }, []);
 
   return (
@@ -38,9 +55,16 @@ export default function Navbar({ onMenuClick }) {
       {/* Right side */}
       <div className="flex items-center gap-3">
         {/* Notifications */}
-        <button className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors">
+        <button
+          onClick={() => navigate("/alerts")}
+          className="relative p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/60 transition-colors"
+        >
           <HiBell className="h-5 w-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-indigo-400" />
+          {openAlertCount > 0 && (
+            <span className="absolute -top-0.5 -right-0.5 min-w-4 h-4 px-1 rounded-full bg-rose-500 text-[10px] text-white flex items-center justify-center">
+              {openAlertCount > 9 ? "9+" : openAlertCount}
+            </span>
+          )}
         </button>
 
         {/* User dropdown */}
@@ -49,7 +73,7 @@ export default function Navbar({ onMenuClick }) {
             onClick={() => setDropdownOpen(!dropdownOpen)}
             className="flex items-center gap-2 p-1.5 pr-3 rounded-xl hover:bg-slate-800/60 transition-colors"
           >
-            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-sm font-bold text-white">
+            <div className="w-8 h-8 rounded-full bg-linear-to-br from-indigo-500 to-emerald-500 flex items-center justify-center text-sm font-bold text-white">
               {user?.username?.charAt(0)?.toUpperCase() || "U"}
             </div>
             <div className="hidden sm:block text-left">

@@ -7,6 +7,7 @@ import {
   HiTruck,
   HiClipboardDocumentList,
   HiChartBar,
+  HiBellAlert,
   HiCog6Tooth,
   HiXMark,
   HiUsers,
@@ -17,6 +18,7 @@ const navItems = [
   { path: "/inventory", label: "Inventory", icon: HiArchiveBox },
   { path: "/orders", label: "Orders", icon: HiClipboardDocumentList },
   { path: "/reports", label: "Reports", icon: HiChartBar },
+  { path: "/alerts", label: "Alerts", icon: HiBellAlert },
   { path: "/settings", label: "Settings", icon: HiCog6Tooth },
 ];
 

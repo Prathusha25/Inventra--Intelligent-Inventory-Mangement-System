@@ -19,6 +19,7 @@ import Inventory from "./pages/Inventory";
 import Suppliers from "./pages/Suppliers";
 import Orders from "./pages/Orders";
 import Reports from "./pages/Reports";
+import Alerts from "./pages/Alerts";
 import Settings from "./pages/Settings";
 import Users from "./pages/Users";
 
@@ -65,6 +66,7 @@ function App() {
               <Route path="/inventory" element={<Inventory />} />
               <Route path="/orders" element={<Orders />} />
               <Route path="/reports" element={<Reports />} />
+              <Route path="/alerts" element={<Alerts />} />
               <Route path="/settings" element={<Settings />} />
               
               {/* Admin Only Routes */}

@@ -16,6 +16,7 @@ public class ProductDTO {
     private String sku;
     private String category;
     private Integer quantity;
+    private Integer minThreshold;
     private BigDecimal price;
     private String supplier;
     private String status;

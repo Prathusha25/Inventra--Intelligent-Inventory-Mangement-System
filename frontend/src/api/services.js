@@ -85,6 +85,26 @@ export const reportService = {
   getOrderReport: (startDate, endDate) =>
     api.get(`/reports/orders?startDate=${startDate}&endDate=${endDate}`), // Admin only
   getInventoryReport: () => api.get("/reports/inventory"), // Admin only
+  getAuditLogReport: () => api.get("/reports/audit-logs"), // Admin only
+};
+
+// ============================================
+// Alert Management
+// ============================================
+export const alertService = {
+  getMyAlerts: () => api.get("/alerts/my"),
+  getOpenAlerts: () => api.get("/alerts/open"), // Admin only
+  getOpenCount: () => api.get("/alerts/open/count"),
+  acknowledge: (id) => api.post(`/alerts/${id}/acknowledge`),
+  resolve: (id) => api.post(`/alerts/${id}/resolve`), // Admin only
+};
+
+// ============================================
+// Audit Logs (Admin Only)
+// ============================================
+export const auditLogService = {
+  getRecent: () => api.get("/audit-logs"),
+  getByEntityType: (entityType) => api.get(`/audit-logs/entity/${entityType}`),
 };
 
 // Export default object with all services
@@ -95,6 +115,8 @@ const apiServices = {
   suppliers: supplierService,
   orders: orderService,
   reports: reportService,
+  alerts: alertService,
+  auditLogs: auditLogService,
 };
 
 export default apiServices;
